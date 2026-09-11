@@ -1,0 +1,17 @@
+_format_version: "3.0"
+services:
+  - name: oficina-api
+    url: http://host.docker.internal:8080
+    routes:
+      - name: api
+        paths: ["/api"]
+        strip_path: false
+  - name: oficina-auth
+    url: http://host.docker.internal:8081
+    routes:
+      - name: auth-cpf
+        paths: ["/auth/cpf"]
+        methods: ["POST"]
+plugins:
+  - name: rate-limiting
+    config: { minute: 60, policy: local }
