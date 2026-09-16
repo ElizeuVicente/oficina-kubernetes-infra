@@ -12,7 +12,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.2.1
     ports: ["9090:9090"]
-    volumes: ["./prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    volumes: ["./prometheus.yml:/etc/prometheus/prometheus.yml:ro", "./alerts.yml:/etc/prometheus/alerts.yml:ro"]
     extra_hosts: ["host.docker.internal:host-gateway"]
   grafana:
     image: grafana/grafana:11.5.2

@@ -13,6 +13,8 @@ curl http://localhost:8000/actuator/health
 
 Kong fica em `http://localhost:8000`, Prometheus em `http://localhost:9090` e Grafana em `http://localhost:3000`. O gateway limita a 60 requisições/minuto localmente e encaminha `/api` e `/auth/cpf`.
 
+As regras locais ficam em `local/alerts.yml` e o dashboard técnico importável em `local/grafana-dashboard.json`.
+
 ```bash
 terraform init -backend=false
 terraform plan -var="kubeconfig_path=$HOME/.kube/config"

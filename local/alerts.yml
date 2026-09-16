@@ -1,0 +1,9 @@
+groups:
+  - name: oficina
+    rules:
+      - alert: OficinaApiIndisponivel
+        expr: up{job="oficina-api"} == 0
+        for: 1m
+      - alert: OficinaApiComErros
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) > 0
+        for: 2m
