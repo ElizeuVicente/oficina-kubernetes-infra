@@ -15,3 +15,12 @@ services:
 plugins:
   - name: rate-limiting
     config: { minute: 60, policy: local }
+  - name: cors
+    config:
+      origins: ["http://localhost:3000"]
+      methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
+      headers: ["Authorization", "Content-Type", "X-Correlation-Id"]
+      exposed_headers: ["X-Correlation-Id"]
+      credentials: true
+  - name: file-log
+    config: { path: "/dev/stdout" }
