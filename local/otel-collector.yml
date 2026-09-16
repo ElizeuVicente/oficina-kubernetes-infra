@@ -1,0 +1,13 @@
+receivers:
+  otlp:
+    protocols:
+      http: {}
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls: { insecure: true }
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/tempo]

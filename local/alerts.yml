@@ -7,3 +7,9 @@ groups:
       - alert: OficinaApiComErros
         expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) > 0
         for: 2m
+      - alert: OficinaApiLenta
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+      - alert: OficinaFalhaDeProcessamento
+        expr: increase(oficina_os_falhas_total[5m]) > 0
+        for: 1m

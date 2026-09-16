@@ -18,5 +18,14 @@ services:
     image: grafana/grafana:11.5.2
     ports: ["3000:3000"]
     volumes: ["grafana_data:/var/lib/grafana"]
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes: ["./tempo.yml:/etc/tempo.yml:ro"]
+  otel-collector:
+    image: otel/opentelemetry-collector:0.116.1
+    command: ["--config=/etc/otelcol/config.yml"]
+    ports: ["4318:4318"]
+    volumes: ["./otel-collector.yml:/etc/otelcol/config.yml:ro"]
 volumes:
   grafana_data:
