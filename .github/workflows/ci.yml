@@ -9,3 +9,11 @@ jobs:
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false
       - run: terraform validate
+      - name: Validate AWS EKS module without provisioning
+        working-directory: aws
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+      - uses: azure/setup-kubectl@v4
+      - name: Validate cloud observability manifests
+        run: kubectl kustomize aws/observability >/dev/null

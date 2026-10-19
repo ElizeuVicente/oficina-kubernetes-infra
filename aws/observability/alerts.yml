@@ -1,0 +1,13 @@
+groups:
+  - name: oficina
+    rules:
+      - alert: OficinaAPIDown
+        expr: up{job=~"oficina-(prod|homolog)"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "API da oficina indisponível" }
+      - alert: OficinaOSFailure
+        expr: increase(oficina_os_falhas_total{job=~"oficina-(prod|homolog)"}[5m]) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations: { summary: "Falha no processamento de ordem de serviço" }
