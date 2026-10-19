@@ -203,5 +203,8 @@ resource "aws_lb_listener_rule" "homolog" {
 resource "aws_ecr_repository" "api" {
   name                 = "oficina-fase3-api"
   image_tag_mutability = "IMMUTABLE"
+  # O laboratório é efêmero: permitir que terraform destroy remova imagens
+  # deste repositório específico, evitando armazenamento residual.
+  force_delete = true
   image_scanning_configuration { scan_on_push = true }
 }
