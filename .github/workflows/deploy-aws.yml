@@ -1,0 +1,67 @@
+name: Deploy AWS EKS
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  apply:
+    if: vars.ENABLE_CLOUD_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    environment: cloud
+    concurrency: aws-oficina-network
+    env:
+      TF_VAR_eks_cluster_role_arn: ${{ vars.EKS_CLUSTER_ROLE_ARN }}
+      TF_VAR_eks_node_role_arn: ${{ vars.EKS_NODE_ROLE_ARN }}
+      TF_VAR_admin_cidrs: ${{ vars.ADMIN_CIDRS_JSON }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Exigir entradas
+        run: |
+          for name in TF_VAR_eks_cluster_role_arn TF_VAR_eks_node_role_arn TF_VAR_admin_cidrs TF_STATE_BUCKET; do
+            test -n "${!name}" || { echo "$name ausente"; exit 1; }
+          done
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+      - name: Plan e apply
+        working-directory: aws
+        run: |
+          aws sts get-caller-identity --query Arn --output text >/dev/null
+          terraform init -input=false -backend-config="bucket=$TF_STATE_BUCKET" -backend-config="key=oficina/kubernetes.tfstate" -backend-config="region=us-east-1" -backend-config="use_lockfile=true"
+          terraform plan -input=false -out=deploy.tfplan
+          terraform apply -input=false -auto-approve deploy.tfplan
+  observability:
+    needs: apply
+    runs-on: [self-hosted, linux, oficina-deploy]
+    environment: cloud
+    env:
+      GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exigir senha
+        run: test -n "$GRAFANA_ADMIN_PASSWORD" && test -n "$ALERT_WEBHOOK_URL"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+      - name: Provisionar dashboards privados
+        run: |
+          aws eks update-kubeconfig --name oficina-fase3
+          kubectl apply -f aws/observability/namespace.yaml
+          kubectl -n oficina-observability create secret generic grafana-admin \
+            --from-literal="password=${GRAFANA_ADMIN_PASSWORD}" --dry-run=client -o yaml | kubectl apply -f -
+          alert_config=$(jq -nc --arg url "$ALERT_WEBHOOK_URL" '{route:{receiver:"webhook"},receivers:[{name:"webhook",webhook_configs:[{url:$url}]}]}')
+          kubectl -n oficina-observability create secret generic alertmanager-config \
+            --from-literal="alertmanager.yml=${alert_config}" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -k aws/observability
+          kubectl -n oficina-observability rollout status deployment/prometheus --timeout=180s
+          kubectl -n oficina-observability rollout status deployment/grafana --timeout=180s
+          kubectl -n oficina-observability rollout status deployment/alertmanager --timeout=180s

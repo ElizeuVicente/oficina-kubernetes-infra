@@ -1,0 +1,13 @@
+{
+  "uid": "oficina-fase3", "title": "Oficina — Fase 3", "schemaVersion": 39,
+  "time": {"from": "now-6h", "to": "now"}, "refresh": "30s", "panels": [
+    {"id":1,"title":"Disponibilidade API","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"up{job=~\"oficina-(prod|homolog)\"}","legendFormat":"{{job}}"}]},
+    {"id":2,"title":"Latência p95","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"histogram_quantile(0.95, sum by (le,job) (rate(http_server_requests_seconds_bucket[5m])))","legendFormat":"{{job}}"}]},
+    {"id":3,"title":"CPU Kubernetes (cores)","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (namespace,pod) (rate(container_cpu_usage_seconds_total{namespace=~\"oficina-(prod|homolog)\",container!=\"\"}[5m]))","legendFormat":"{{namespace}} {{pod}}"}]},
+    {"id":4,"title":"OS abertas hoje","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"oficina_ordens_servico_volume_diario","legendFormat":"{{job}}"}]},
+    {"id":5,"title":"Duração média por etapa (min)","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":16},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"oficina_os_duracao_etapa_minutos","legendFormat":"{{job}} {{etapa}}"}]},
+    {"id":6,"title":"Falhas de processamento de OS","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":16},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"increase(oficina_os_falhas_total[5m])","legendFormat":"{{job}} {{tipo}}"}]},
+    {"id":7,"title":"Memória Kubernetes (bytes)","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":24},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (namespace,pod) (container_memory_working_set_bytes{namespace=~\"oficina-(prod|homolog)\",container!=\"\"})","legendFormat":"{{namespace}} {{pod}}"}]},
+    {"id":8,"title":"Falhas de integração","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":24},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"increase(oficina_integracao_falhas_total[5m])","legendFormat":"{{job}} {{integracao}}"}]}
+  ]
+}

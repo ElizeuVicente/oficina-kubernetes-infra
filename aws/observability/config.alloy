@@ -1,0 +1,35 @@
+discovery.kubernetes "oficina_pods" {
+  role = "pod"
+}
+
+discovery.relabel "oficina_only" {
+  targets = discovery.kubernetes.oficina_pods.targets
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    regex = "oficina-(prod|homolog)"
+    action = "keep"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label = "namespace"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_name"]
+    target_label = "pod"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_pod_container_name"]
+    target_label = "container"
+  }
+}
+
+loki.source.kubernetes "oficina" {
+  targets = discovery.relabel.oficina_only.output
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
