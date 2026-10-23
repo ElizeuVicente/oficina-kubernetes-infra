@@ -66,3 +66,4 @@ jobs:
           kubectl -n oficina-observability rollout status deployment/prometheus --timeout=180s
           kubectl -n oficina-observability rollout status deployment/grafana --timeout=180s
           kubectl -n oficina-observability rollout status deployment/alertmanager --timeout=180s
+          kubectl -n oficina-observability rollout status deployment/webhook-receiver --timeout=180s

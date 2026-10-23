@@ -8,6 +8,7 @@ resources:
   - loki.yaml
   - alloy.yaml
   - tempo.yaml
+  - webhook-receiver.yaml
 configMapGenerator:
   - name: prometheus-config
     files:
