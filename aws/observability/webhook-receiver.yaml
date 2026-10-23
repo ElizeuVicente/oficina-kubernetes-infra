@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-receiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: webhook-receiver }
+  template:
+    metadata:
+      labels: { app: webhook-receiver }
+    spec:
+      containers:
+        - name: receiver
+          image: python:3.12-alpine
+          command: ["python", "-u", "-c"]
+          args:
+            - |
+              import json
+              from http.server import BaseHTTPRequestHandler, HTTPServer
+
+              class Handler(BaseHTTPRequestHandler):
+                  def do_POST(self):
+                      size = min(int(self.headers.get("Content-Length", "0")), 65536)
+                      try:
+                          data = json.loads(self.rfile.read(size))
+                          alerts = data.get("alerts", [])
+                          summary = {
+                              "event": "alertmanager_webhook_received",
+                              "count": len(alerts),
+                              "alerts": [
+                                  {"name": alert.get("labels", {}).get("alertname"),
+                                   "status": alert.get("status")}
+                                  for alert in alerts
+                              ],
+                          }
+                          print(json.dumps(summary), flush=True)
+                          self.send_response(204)
+                      except (ValueError, TypeError) as error:
+                          print(json.dumps({"event": "invalid_alert_webhook", "error": str(error)}), flush=True)
+                          self.send_response(400)
+                      self.end_headers()
+
+              HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+          ports:
+            - { name: http, containerPort: 8080 }
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits: { cpu: 100m, memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-receiver
+spec:
+  selector: { app: webhook-receiver }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
