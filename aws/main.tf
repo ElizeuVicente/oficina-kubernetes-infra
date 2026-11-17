@@ -136,7 +136,7 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_nodes" {
   security_group_id            = aws_security_group.alb.id
   referenced_security_group_id = aws_eks_cluster.oficina.vpc_config[0].cluster_security_group_id
   from_port                    = 30080
-  to_port                      = 30081
+  to_port                      = 30082
   ip_protocol                  = "tcp"
 }
 
@@ -144,7 +144,7 @@ resource "aws_vpc_security_group_ingress_rule" "nodes_from_alb" {
   security_group_id            = aws_eks_cluster.oficina.vpc_config[0].cluster_security_group_id
   referenced_security_group_id = aws_security_group.alb.id
   from_port                    = 30080
-  to_port                      = 30081
+  to_port                      = 30082
   ip_protocol                  = "tcp"
 }
 
