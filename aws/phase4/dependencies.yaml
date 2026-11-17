@@ -1,0 +1,120 @@
+# Laboratório temporário: dados em emptyDir não sobrevivem à substituição do Pod.
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-mongo
+spec:
+  clusterIP: None
+  selector: {app: oficina-mongo}
+  ports:
+    - name: mongo
+      port: 27017
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: oficina-mongo
+spec:
+  serviceName: oficina-mongo
+  replicas: 1
+  selector:
+    matchLabels: {app: oficina-mongo}
+  template:
+    metadata:
+      labels: {app: oficina-mongo}
+    spec:
+      initContainers:
+        - name: preparar-chave-mongo
+          image: busybox:1.36
+          command: ["sh", "-c", "cp /source/keyfile /key/keyfile && chown 999:999 /key/keyfile && chmod 400 /key/keyfile"]
+          volumeMounts:
+            - {name: mongo-key-secret, mountPath: /source, readOnly: true}
+            - {name: mongo-key, mountPath: /key}
+      containers:
+        - name: mongo
+          image: mongo:7
+          args: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/key/keyfile"]
+          envFrom:
+            - secretRef: {name: oficina-mongo-config}
+          ports:
+            - containerPort: 27017
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: mongo-data, mountPath: /data/db}
+            - {name: mongo-key, mountPath: /key, readOnly: true}
+      volumes:
+        - name: mongo-data
+          emptyDir: {}
+        - name: mongo-key
+          emptyDir: {}
+        - name: mongo-key-secret
+          secret: {secretName: oficina-mongo-config, items: [{key: MONGO_KEYFILE, path: keyfile}]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oficina-rabbitmq
+spec:
+  selector: {app: oficina-rabbitmq}
+  ports:
+    - {name: amqp, port: 5672, targetPort: 5672}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: oficina-rabbitmq}
+  template:
+    metadata:
+      labels: {app: oficina-rabbitmq}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.13-alpine
+          ports:
+            - containerPort: 5672
+          envFrom:
+            - secretRef: {name: oficina-rabbitmq-config}
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 512Mi}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: oficina-mongo-replica-init
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: mongo:7
+          envFrom:
+            - secretRef: {name: oficina-mongo-config}
+          command:
+            - sh
+            - -ec
+            - |
+              host='oficina-mongo-0.oficina-mongo.oficina-prod.svc.cluster.local:27017'
+              for attempt in $(seq 1 60); do
+                if mongosh --quiet "mongodb://${host}/admin?directConnection=true" -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'${host}'}]}).ok }"; then exit 0; fi
+                sleep 5
+              done
+              exit 1
