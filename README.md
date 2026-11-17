@@ -42,3 +42,9 @@ terraform plan -var="kubeconfig_path=$HOME/.kube/config"
 ```
 
 Nunca execute `apply` contra um cluster que não seja seu. No Learner Lab, OIDC não está disponível para a role observada: use credenciais de sessão curtas no environment protegido, atualizando-as a cada sessão. Configure proteção de `main` e a autorização de `soat-architecture` antes da entrega.
+
+## Dependências temporárias da Fase 4
+
+`aws/phase4/dependencies.yaml` prepara MongoDB autenticado em replica set de um nó e RabbitMQ autenticado no namespace indicado por `kubectl -n`. Antes de aplicar, crie os Secrets `oficina-mongo-config` (`MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD`, `MONGO_KEYFILE`) e `oficina-rabbitmq-config` (`RABBITMQ_DEFAULT_USER`, `RABBITMQ_DEFAULT_PASS`) fora do Git. O Job inicializa a réplica para o nome DNS usado em `oficina-prod`; altere-o junto da configuração dos clientes se usar outro namespace. Configure conexão autenticada e não exponha esses serviços publicamente.
+
+**Somente demonstração:** os dados usam armazenamento efêmero (`emptyDir`). A substituição do Pod pode apagar dados e exigir reinicializar a réplica; não é configuração para produção nem estratégia de backup. Para uma implantação durável, use volumes persistentes, backup, recuperação e alta disponibilidade. O controle de custos exige acompanhar o EKS, nós, balanceador, RDS e os recursos residuais também após encerrar a sessão do laboratório.
